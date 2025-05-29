@@ -1,0 +1,6 @@
+cryptography
+aiohttp
+websockets
+redis
+uvicorn
+pydantic
