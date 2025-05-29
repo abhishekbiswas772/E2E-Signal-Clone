@@ -38,6 +38,9 @@ class CryptoUtils:
         if isinstance(plaintext, str):
             plaintext = plaintext.encode('utf-8')
         
+        if len(key) != 32:
+            raise ValueError(f"Invalid key length: {len(key)} bytes (expected 32)")
+            
         aesgcm = AESGCM(key)
         nonce = secrets.token_bytes(12)
         cipher_text = aesgcm.encrypt(nonce, plaintext, associated_data)
@@ -46,7 +49,26 @@ class CryptoUtils:
     @staticmethod
     def decrypt(key: bytes, ciphertext_with_nonce: bytes, associated_data: bytes = b'') -> bytes:
         """Decrypt ciphertext using AES-GCM"""
-        aesgcm = AESGCM(key)
-        nonce = ciphertext_with_nonce[:12]
-        cipher_text = ciphertext_with_nonce[12:]
-        return aesgcm.decrypt(nonce, cipher_text, associated_data)
+        try:
+            if len(key) != 32:
+                raise ValueError(f"Invalid key length: {len(key)} bytes (expected 32)")
+                
+            if len(ciphertext_with_nonce) < 28:  # 12 bytes nonce + 16 bytes tag minimum
+                raise ValueError(f"Ciphertext too short: {len(ciphertext_with_nonce)} bytes (minimum 28)")
+                
+            aesgcm = AESGCM(key)
+            nonce = ciphertext_with_nonce[:12]
+            cipher_text = ciphertext_with_nonce[12:]
+            
+            print(f"Decrypting - Key length: {len(key)}, Nonce length: {len(nonce)}, Ciphertext length: {len(cipher_text)}")
+            
+            plaintext = aesgcm.decrypt(nonce, cipher_text, associated_data)
+            return plaintext
+            
+        except Exception as e:
+            print(f"Decryption error in CryptoUtils.decrypt:")
+            print(f"Key length: {len(key)} bytes")
+            print(f"Total ciphertext length: {len(ciphertext_with_nonce)} bytes")
+            print(f"Error type: {type(e).__name__}")
+            print(f"Error message: {str(e)}")
+            raise

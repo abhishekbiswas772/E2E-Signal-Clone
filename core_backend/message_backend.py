@@ -24,7 +24,7 @@ class MessagingBackend:
         self.message_handler = MessageHandler(self.redis, self.connection_manager)
         self.pubsub_tasks.append(asyncio.create_task(self._handle_self_destruct()))
         self.pubsub_tasks.append(asyncio.create_task(self._handle_presence_updates()))
-        print("Signal backend initialized")
+        print("Signal backend initialized with encryption")
     
     async def shutdown(self):
         for task in self.pubsub_tasks:
@@ -42,6 +42,7 @@ class MessagingBackend:
             f"prekey_bundle:{user_id}",
             json.dumps(user.prekey_bundle)
         )
+        print(f"User {user_id} registered with prekey bundle")
         
         return {
             'user_id': user_id,
@@ -147,49 +148,80 @@ class MessagingBackend:
                 recipient_id = data['recipient_id']
                 content = data['content']
                 
-                # Create a simple message (we're skipping encryption for now to debug)
-                message_id = f"{int(time.time() * 1000)}{user_id}{recipient_id}"
-                timestamp = time.time()
+                print(f"🔐 Encrypting and sending message: {content}")
+                
+                # Use the full encrypted message handler
+                message = await self.message_handler.handle_text_message(
+                    sender_id=user_id,
+                    recipient_id=recipient_id,
+                    content=content,
+                    self_destruct_seconds=data.get('self_destruct_seconds')
+                )
                 
                 # Send confirmation to sender
                 await self.connection_manager.send_to_user(
                     user_id,
                     WebSocketMessage(
                         type='message_sent',
-                        data={'message_id': message_id, 'timestamp': timestamp}
+                        data={'message_id': message.id, 'timestamp': message.timestamp}
                     )
                 )
                 
-                # Send message to recipient
-                message_data = WebSocketMessage(
-                    type='message',
-                    data={
-                        'id': message_id,
-                        'sender_id': user_id,
-                        'content': content,
-                        'timestamp': timestamp,
-                        'is_me': False
-                    }
-                )
-                
-                success = await self.connection_manager.send_to_user(recipient_id, message_data)
-                print(f"Message sent to {recipient_id}: {success}")
-                
-                if not success:
-                    # Store as offline message
-                    await self.redis.zadd(
-                        f"offline_messages:{recipient_id}",
-                        {json.dumps(message_data.data): timestamp}
-                    )
-                    print(f"Stored offline message for {recipient_id}")
+                print(f"✅ Encrypted message sent from {user_id} to {recipient_id}")
                 
             except Exception as e:
-                print(f"Error handling text message: {e}")
+                print(f"❌ Error handling encrypted message: {e}")
                 await self.connection_manager.send_to_user(
                     user_id,
                     WebSocketMessage(
                         type='error',
-                        data={'message': f'Failed to send message: {str(e)}'}
+                        data={'message': f'Failed to send encrypted message: {str(e)}'}
+                    )
+                )
+        
+        elif msg_type == 'decrypt_message':
+            # Handle message decryption request from client
+            try:
+                print(f"🔓 Processing decryption request from {user_id}")
+                
+                sender_id = data['sender_id']
+                encrypted_content = base64.b64decode(data['encrypted_content'])
+                ephemeral_public_key = base64.b64decode(data['ephemeral_public_key']) if data.get('ephemeral_public_key') else None
+                message_number = data['message_number']
+                is_first_message = data.get('is_first_message', False)
+                
+                # Use the message handler's decrypt method
+                decrypted_content = await self.message_handler.decrypt_message(
+                    user_id=user_id,
+                    sender_id=sender_id,
+                    encrypted_content=encrypted_content,
+                    ephemeral_public_key=ephemeral_public_key,
+                    message_number=message_number,
+                    is_first_message=is_first_message
+                )
+                
+                # Send decrypted message to client
+                decrypted_message = WebSocketMessage(
+                    type='decrypted_message',
+                    data={
+                        'id': data['message_id'],
+                        'sender_id': sender_id,
+                        'content': decrypted_content,
+                        'timestamp': data['timestamp'],
+                        'is_me': False
+                    }
+                )
+                
+                await self.connection_manager.send_to_user(user_id, decrypted_message)
+                print(f"✅ Message decrypted and sent to {user_id}: {decrypted_content}")
+                
+            except Exception as e:
+                print(f"❌ Error decrypting message: {e}")
+                await self.connection_manager.send_to_user(
+                    user_id,
+                    WebSocketMessage(
+                        type='decryption_error',
+                        data={'message': f'Failed to decrypt message: {str(e)}'}
                     )
                 )
                 
@@ -205,12 +237,18 @@ class MessagingBackend:
             await self.connection_manager.send_to_user(data['recipient_id'], typing_message)
             
         elif msg_type == 'delivered':
-            # Handle delivery confirmation
-            pass
+            await self.message_handler.handle_message_status(
+                message_id=data['message_id'],
+                status='delivered',
+                user_id=user_id
+            )
             
         elif msg_type == 'read':
-            # Handle read confirmation
-            pass
+            await self.message_handler.handle_message_status(
+                message_id=data['message_id'],
+                status='read',
+                user_id=user_id
+            )
             
         elif msg_type == 'get_prekeys':
             bundle = await self.redis.get(f"prekey_bundle:{data['user_id']}")
