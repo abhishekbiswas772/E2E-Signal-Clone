@@ -7,7 +7,6 @@ PRESENCE_CHANNEL = "presence"
 MESSAGE_CHANNEL_PREFIX = "messages:"
 TYPING_CHANNEL_PREFIX = "typing:"
 
-# Redis configuration
 REDIS_HOST = "localhost"
 REDIS_PORT = 6380
 REDIS_DB = 0

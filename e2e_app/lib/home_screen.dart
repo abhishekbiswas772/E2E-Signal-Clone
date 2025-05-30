@@ -31,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
   
   Future<void> _loadData() async {
-    print('🔄 Loading users...');
+    debugPrint('🔄 Loading users...');
     setState(() {
       _isLoading = true;
       _loadError = null;
@@ -39,17 +39,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     
     try {
       final users = await ApiService.getAllUsers();
-      print('📊 Loaded ${users.length} users: ${users.map((u) => u['user_id']).join(', ')}');
+      debugPrint('📊 Loaded ${users.length} users: ${users.map((u) => u['user_id']).join(', ')}');
       
       if (mounted) {
         setState(() {
           _users = users.map((u) => User.fromJson(u)).toList();
           _isLoading = false;
         });
-        print('✅ Users set in state: ${_users.map((u) => u.userId).join(', ')}');
+        debugPrint('✅ Users set in state: ${_users.map((u) => u.userId).join(', ')}');
       }
     } catch (e) {
-      print('❌ Error loading users: $e');
+      debugPrint('❌ Error loading users: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -61,12 +61,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   
   void _connectWebSocket() {
     final wsUrl = kIsWeb ? 'ws://localhost:8000/ws' : (Platform.isIOS) ? 'ws://localhost:8000/ws' :'ws://10.0.2.2:8000/ws';
-    print('🔌 Connecting to WebSocket: $wsUrl for user: ${ChatState().currentUserId}');
+    debugPrint('🔌 Connecting to WebSocket: $wsUrl for user: ${ChatState().currentUserId}');
     
     try {
       ChatState().channel = WebSocketChannel.connect(Uri.parse(wsUrl));
-      
-      // Send authentication message
       ChatState().channel!.sink.add(jsonEncode({
         'type': 'auth',
         'user_id': ChatState().currentUserId,
@@ -74,25 +72,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       
       ChatState().channel!.stream.listen(
         (data) {
-          print('📨 WebSocket received: $data');
+          debugPrint('📨 WebSocket received: $data');
           try {
             final message = jsonDecode(data);
             _handleWebSocketMessage(message);
           } catch (e) {
-            print('❌ Error parsing WebSocket message: $e');
+            debugPrint('❌ Error parsing WebSocket message: $e');
           }
         },
         onError: (error) {
-          print('❌ WebSocket error: $error');
+          debugPrint('❌ WebSocket error: $error');
           _reconnectWebSocket();
         },
         onDone: () {
-          print('🔌 WebSocket connection closed');
+          debugPrint('🔌 WebSocket connection closed');
           _reconnectWebSocket();
         },
       );
     } catch (e) {
-      print('❌ Error connecting to WebSocket: $e');
+      debugPrint('❌ Error connecting to WebSocket: $e');
       _reconnectWebSocket();
     }
   }
@@ -101,12 +99,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     if (!mounted) return;
     
     final type = message['type'];
-    print('📨 Handling WebSocket message type: $type');
+    debugPrint('📨 Handling WebSocket message type: $type');
     
     try {
       switch (type) {
         case 'auth_success':
-          print('🔐 Authentication successful - Encryption enabled');
+          debugPrint('🔐 Authentication successful - Encryption enabled');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -125,37 +123,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           break;
           
         case 'encrypted_message':
-          // Received an encrypted message - request decryption
           final data = message['data'];
-          print('📨 Encrypted message received from ${data['sender_id']}');
-          
-          // Check if we're currently in chat with this sender
+          debugPrint('📨 Encrypted message received from ${data['sender_id']}');
           final currentRoute = ModalRoute.of(context)?.settings.name;
           final routeArgs = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
           final isInChatWithSender = currentRoute == '/chat' && routeArgs?['chatId'] == data['sender_id'];
-          
-          // Only decrypt if not in chat (chat screen will handle its own decryption)
           if (!isInChatWithSender) {
             _requestMessageDecryption(data);
           }
           break;
           
         case 'decrypted_message':
-          // Received decrypted message content
           final data = message['data'];
           final chatMessage = Message(
             id: data['id'],
             senderId: data['sender_id'],
-            content: '🔐 ${data['content']}', // Add lock emoji to show it was encrypted
+            content: '🔐 ${data['content']}',
             timestamp: DateTime.fromMillisecondsSinceEpoch((data['timestamp'] * 1000).round()),
             isMe: data['is_me'] ?? false,
           );
-          print('🔓 Message decrypted from ${data['sender_id']}: ${data['content']}');
-          
-          // Add message to chat state
+          debugPrint('🔓 Message decrypted from ${data['sender_id']}: ${data['content']}');
           ChatState().addMessage(data['sender_id'], chatMessage);
-          
-          // Only show notification if not currently in that chat
           final currentRoute = ModalRoute.of(context)?.settings.name;
           final routeArgs = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
           final isInChatWithSender = currentRoute == '/chat' && routeArgs?['chatId'] == data['sender_id'];
@@ -654,7 +642,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   if (user.userId == ChatState().currentUserId) {
                     return SizedBox.shrink();
                   }
-                  
                   return ListTile(
                     leading: Stack(
                       children: [

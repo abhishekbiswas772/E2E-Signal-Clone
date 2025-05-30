@@ -39,7 +39,6 @@ class ChatState {
     }
     _messages[chatId]!.add(message);
     
-    // Ensure controller exists and is not closed
     if (_messageController?.isClosed != false) {
       _messageController = StreamController<Message>.broadcast();
     }
@@ -57,7 +56,6 @@ class ChatState {
       _onlineUsers.remove(userId);
     }
     
-    // Ensure controller exists and is not closed
     if (_onlineUsersController?.isClosed != false) {
       _onlineUsersController = StreamController<Set<String>>.broadcast();
     }
@@ -75,7 +73,6 @@ class ChatState {
       _typingUsers[chatId]!.remove(userId);
     }
     
-    // Ensure controller exists and is not closed
     if (_typingUsersController?.isClosed != false) {
       _typingUsersController = StreamController<Map<String, Set<String>>>.broadcast();
     }
@@ -93,7 +90,6 @@ class ChatState {
     _typingUsersController?.close();
     closeWebSocket();
     
-    // Clear data
     _messages.clear();
     _onlineUsers.clear();
     _typingUsers.clear();
@@ -101,7 +97,6 @@ class ChatState {
     currentUserDisplayName = null;
   }
   
-  // Method to reset controllers without disposing the entire state
   void resetControllers() {
     if (_messageController?.isClosed == true) {
       _messageController = StreamController<Message>.broadcast();

@@ -96,7 +96,6 @@ class MessageBubble extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Encryption indicator
                       if (_isEncrypted)
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),

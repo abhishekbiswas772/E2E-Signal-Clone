@@ -28,7 +28,6 @@ class _SignalChatAppState extends State<SignalChatApp> with WidgetsBindingObserv
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // Only dispose ChatState when the entire app is being closed
     ChatState().dispose();
     super.dispose();
   }
@@ -40,18 +39,13 @@ class _SignalChatAppState extends State<SignalChatApp> with WidgetsBindingObserv
     switch (state) {
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
-        // App is going to background or being closed
         ChatState().closeWebSocket();
         break;
       case AppLifecycleState.resumed:
-        // App is coming back to foreground
-        // The WebSocket will be reconnected when HomeScreen is rebuilt
         break;
       case AppLifecycleState.inactive:
-        // App is inactive (e.g., during a phone call)
         break;
       case AppLifecycleState.hidden:
-        // App is hidden
         break;
     }
   }

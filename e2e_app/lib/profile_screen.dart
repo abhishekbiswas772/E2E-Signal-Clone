@@ -7,7 +7,6 @@ class ProfileScreen extends StatelessWidget {
 
   Future<void> _logout(BuildContext context) async {
     try {
-      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -22,25 +21,14 @@ class ProfileScreen extends StatelessWidget {
         ),
       );
 
-      // Close WebSocket connection first
       ChatState().closeWebSocket();
-      
-      // Clear shared preferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
-      
-      // Dispose ChatState completely (only on logout)
       ChatState().dispose();
-      
-      // Close loading dialog
       Navigator.of(context).pop();
-      
-      // Navigate to auth screen and clear navigation stack
       Navigator.pushNamedAndRemoveUntil(context, '/auth', (route) => false);
     } catch (e) {
-      // Close loading dialog if there's an error
       Navigator.of(context).pop();
-      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error logging out: $e'),

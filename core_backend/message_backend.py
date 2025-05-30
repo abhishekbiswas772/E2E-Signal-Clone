@@ -54,7 +54,6 @@ class MessagingBackend:
     async def handle_websocket(self, websocket: WebSocket):
         user_id = None
         try:
-            # Wait for authentication message
             auth_msg = await websocket.receive_text()
             auth_data = json.loads(auth_msg)
             
@@ -67,26 +66,14 @@ class MessagingBackend:
             
             user_id = auth_data['user_id']
             print(f"Authenticating user: {user_id}")
-            
-            # Connect user
             await self.connection_manager.connect(websocket, user_id)
-            
-            # Send auth success
             await websocket.send_text(json.dumps({
                 'type': 'auth_success',
                 'user_id': user_id
             }))
-            
-            # Broadcast this user's online status to all other connected users
             await self._broadcast_presence_to_all_users(user_id, 'online')
-            
-            # Send current online users to this user
             await self._send_current_online_users(user_id)
-            
-            # Deliver offline messages
             await self.message_handler.deliver_offline_messages(user_id)
-            
-            # Main message loop
             while True:
                 try:
                     message = await websocket.receive_text()
@@ -97,8 +84,7 @@ class MessagingBackend:
                 except json.JSONDecodeError:
                     print(f"Invalid JSON from {user_id}: {message}")
                 except Exception as e:
-                    print(f"Error processing message from {user_id}: {e}")
-                    
+                    print(f"Error processing message from {user_id}: {e}")  
         except WebSocketDisconnect:
             print(f"WebSocket disconnected for {user_id}")
         except Exception as e:
@@ -109,7 +95,6 @@ class MessagingBackend:
                 await self._broadcast_presence_to_all_users(user_id, 'offline')
     
     async def _send_current_online_users(self, user_id: str):
-        """Send list of currently online users to the newly connected user"""
         for online_user_id in self.connection_manager.user_connections.keys():
             if online_user_id != user_id:
                 presence_message = WebSocketMessage(
@@ -122,7 +107,6 @@ class MessagingBackend:
                 await self.connection_manager.send_to_user(user_id, presence_message)
     
     async def _broadcast_presence_to_all_users(self, user_id: str, status: str):
-        """Broadcast presence update to all connected users"""
         presence_message = WebSocketMessage(
             type='presence',
             data={
@@ -132,8 +116,6 @@ class MessagingBackend:
         )
         
         print(f"Broadcasting presence: {user_id} is {status}")
-        
-        # Get all connected users
         for connected_user_id in list(self.connection_manager.user_connections.keys()):
             if connected_user_id != user_id:  # Don't send to self
                 success = await self.connection_manager.send_to_user(connected_user_id, presence_message)
@@ -149,8 +131,7 @@ class MessagingBackend:
                 content = data['content']
                 
                 print(f"🔐 Encrypting and sending message: {content}")
-                
-                # Use the full encrypted message handler
+        
                 message = await self.message_handler.handle_text_message(
                     sender_id=user_id,
                     recipient_id=recipient_id,
@@ -158,7 +139,6 @@ class MessagingBackend:
                     self_destruct_seconds=data.get('self_destruct_seconds')
                 )
                 
-                # Send confirmation to sender
                 await self.connection_manager.send_to_user(
                     user_id,
                     WebSocketMessage(
@@ -180,10 +160,8 @@ class MessagingBackend:
                 )
         
         elif msg_type == 'decrypt_message':
-            # Handle message decryption request from client
             try:
                 print(f"🔓 Processing decryption request from {user_id}")
-                
                 sender_id = data['sender_id']
                 encrypted_content = base64.b64decode(data['encrypted_content'])
                 ephemeral_public_key = base64.b64decode(data['ephemeral_public_key']) if data.get('ephemeral_public_key') else None

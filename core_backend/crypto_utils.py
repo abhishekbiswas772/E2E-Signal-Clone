@@ -34,7 +34,6 @@ class CryptoUtils:
 
     @staticmethod
     def encrypt(key: bytes, plaintext: Union[str, bytes], associated_data: bytes = b'') -> bytes:
-        """Encrypt plaintext using AES-GCM"""
         if isinstance(plaintext, str):
             plaintext = plaintext.encode('utf-8')
         
@@ -48,7 +47,6 @@ class CryptoUtils:
 
     @staticmethod
     def decrypt(key: bytes, ciphertext_with_nonce: bytes, associated_data: bytes = b'') -> bytes:
-        """Decrypt ciphertext using AES-GCM"""
         try:
             if len(key) != 32:
                 raise ValueError(f"Invalid key length: {len(key)} bytes (expected 32)")
@@ -61,7 +59,6 @@ class CryptoUtils:
             cipher_text = ciphertext_with_nonce[12:]
             
             print(f"Decrypting - Key length: {len(key)}, Nonce length: {len(nonce)}, Ciphertext length: {len(cipher_text)}")
-            
             plaintext = aesgcm.decrypt(nonce, cipher_text, associated_data)
             return plaintext
             

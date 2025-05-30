@@ -9,7 +9,7 @@ import time
 from core_backend.constants import *
 import secrets
 import base64
-from core_backend.double_ratchet_algorithm import X3DH, DoubleRatchetAlgoImpl, RatchetState
+from core_backend.double_ratchet_algorithm import X3DH, DoubleRatchetAlgo, RatchetState
 
 
 class MessageHandler:    
@@ -127,7 +127,7 @@ class MessageHandler:
         )
         
         # Initialize sender's ratchet as Alice (sender always starts as Alice)
-        sender_ratchet = DoubleRatchetAlgoImpl(RatchetState())
+        sender_ratchet = DoubleRatchetAlgo(RatchetState())
         sender_ratchet.init_alice(shared_secret, recipient_bundle.signed_prekey)
         sender.sessions[recipient_id] = sender_ratchet
         
@@ -307,7 +307,7 @@ class MessageHandler:
         )
         
         # Initialize receiver's ratchet as Bob
-        receiver_ratchet = DoubleRatchetAlgoImpl(RatchetState())
+        receiver_ratchet = DoubleRatchetAlgo(RatchetState())
         
         # Get Bob's signed prekey pair for initialization
         signed_prekey_public = base64.b64decode(receiver.prekey_bundle['signed_prekey']['public'])
